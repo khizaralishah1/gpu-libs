@@ -1,9 +1,9 @@
 #include <iostream>
 
-#include "CLManager.h"
+#include "Host.h"
 
 int main() {
-  cl::CLManager cl_manager;
-  cl_manager.Start();
+  cl::Host host;
+  host.Start();
   return 0;
 }

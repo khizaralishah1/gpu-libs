@@ -1,3 +1,3 @@
-add_executable(app Main.cpp)
-target_link_libraries(app PRIVATE cl_lib)
-target_include_directories(app PRIVATE include)
+add_executable(opencl_app Main.cpp)
+target_link_libraries(opencl_app PRIVATE cl_lib)
+target_include_directories(opencl_app PRIVATE include)

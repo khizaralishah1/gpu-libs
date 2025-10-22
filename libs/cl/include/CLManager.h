@@ -1,6 +1,8 @@
 #ifndef CL_MANAGER_H
 #define CL_MANAGER_H
 
+#include <vector>
+
 #include "Kernel.h"
 
 namespace cl {
@@ -9,9 +11,16 @@ class CLManager {
  public:
   CLManager();
   void Start();
+  
+  // Logic
+  cl_mem MakeBuffer(int size);
+  void SetupKernel(std::string kernel_filename, std::string kernel_name);
 
-
+  // Debugging
   void PrintInfo();
+
+
+
  private:
   void SetupPlatform();
   void SetupDevice();

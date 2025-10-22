@@ -14,7 +14,6 @@ void cl::CLManager::Start() {
   // Step 3: Context
   SetupContext();
 
-  // Device info
   PrintInfo();
 
   // Step 4: Command Queue (modern API)
@@ -24,21 +23,17 @@ void cl::CLManager::Start() {
   cl_command_queue queue = clCreateCommandQueue(context, device, 0, nullptr);
 
   // Step 5: Host data
-  constexpr int n = 1024;
-  std::vector<float> a(n, 1.0f);
+  int n = 1024;
   std::vector<float> b(n, 2.0f);
   std::vector<float> c(n);
 
   // Step 6: Buffers
-  cl_mem a_buf = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                sizeof(float) * n, a.data(), nullptr);
-  cl_mem b_buf = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                sizeof(float) * n, b.data(), nullptr);
+  cl_mem a_buf = MakeBuffer(n);
+  cl_mem b_buf = MakeBuffer(n);
   cl_mem c_buf = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(float) * n, nullptr, nullptr);
 
   // Step 7: Create kernel
-  programs.push_back(kern::BuildProgram("libs/kern/VectorAddition.cl", context, device));
-  kernels.push_back(kern::CreateKernelFromProgram(programs[0], "VectorAdd"));
+  SetupKernel("libs/kern/VectorAddition.cl", "VectorAdd");
 
   // Step 9: Set kernel arguments
   clSetKernelArg(kernels[0], 0, sizeof(cl_mem), &a_buf);
@@ -66,7 +61,7 @@ void cl::CLManager::Start() {
 }
 
 void cl::CLManager::SetupDevice() {
-  cl_uint num_devices = 0;
+  cl_uint num_devices;
   cl_int err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, &num_devices);
   if (err != CL_SUCCESS || num_devices == 0) {
     std::cerr << "[cl::CLManager::SetupDevice] No OpenCL GPU device found. Error: " << err
@@ -76,7 +71,7 @@ void cl::CLManager::SetupDevice() {
 }
 
 void cl::CLManager::SetupPlatform() {
-  cl_uint num_platforms = 0;
+  cl_uint num_platforms;
   cl_int err = clGetPlatformIDs(1, &platform, &num_platforms);
   if (err != CL_SUCCESS || num_platforms == 0) {
     std::cerr << "[cl::CLManager::SetupPlatform] No OpenCL platform found. Error: " << err
