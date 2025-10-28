@@ -1,5 +1,5 @@
-#ifndef KERNEL_H
-#define KERNEL_H
+#ifndef KERNEL_MANAGER_H
+#define KERNEL_MANAGER_H
 
 #include <string>
 #include <map>
@@ -7,9 +7,11 @@
 #define CL_TARGET_OPENCL_VERSION 300
 #include <OpenCL/cl.h>
 
+#include "Kernel.h"
+
 namespace kern {
 
-typedef std::pair<const char*, const size_t*> KernelData;
+typedef std::tuple<std::string, std::string, int> KernelData;
 
 class KernelManager {
  public:
@@ -21,12 +23,18 @@ class KernelManager {
   void LoadKernelSources(const std::string& kernels_directory);
   void CreateKernels();
 
+  template <typename T>
+  void CreateMemory(std::vector<T>& memory_buffer);
+
+  template <typename... Args>
+  void KernelArguments(const std::string& kernel_name, const Args&... args);
+
   void Clear();
 
  private:
   std::vector<cl_program> programs;
-  std::vector<cl_kernel> kernels;
-  std::map<std::string, KernelData> kernel_sources;
+  std::vector<Kernel> kernels;
+  std::vector<KernelData> kernel_sources;
 
   cl_context context;
   cl_device_id device;
@@ -36,4 +44,4 @@ std::string LoadKernelFromFile(const std::string& file_name);
 
 }  // namespace kern
 
-#endif  // KERNEL_H
+#endif  // KERNEL_MANAGER_H

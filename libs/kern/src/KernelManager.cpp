@@ -22,15 +22,14 @@ std::string kern::LoadKernelFromFile(const std::string& file_name) {
 }
 
 void kern::KernelManager::LoadKernelSources(const std::string& kernels_directory) {
-  std::cout << "[kern::KernelManagerLoadKernelSources] Directory: " << kernels_directory << std::endl;
+  std::cout << "[kern::KernelManagerLoadKernelSources] Directory: " << kernels_directory
+            << std::endl;
   for (const auto& kernel_file : std::filesystem::directory_iterator(kernels_directory)) {
     if (kernel_file.is_regular_file() && kernel_file.path().extension() == ".cl") {
       std::string file_name = kernel_file.path().stem().string();  // kernel name without extension
       std::string kernel_source = LoadKernelFromFile(kernel_file.path());
-      size_t size = kernel_source.size();
-      KernelData kernel_data =
-          std::make_pair(kernel_source.c_str(), static_cast<const size_t*>(&size));
-      kernel_sources[file_name] = kernel_data;
+      Kernel kernel(file_name, kernel_source);
+      kernels.push_back(kernel);
       std::cout << "[kern::KernelManager::LoadKernels] Loaded kernel: " << file_name << std::endl;
     }
   }
@@ -42,12 +41,14 @@ void kern::KernelManager::LoadKernelSources(const std::string& kernels_directory
 }
 
 void kern::KernelManager::CreateKernels() {
-  for (const auto& kernel_source : kernel_sources) {
+  for (const auto& kernel_ : kernels) {
     // 1. Create program from the kernel source
     cl_int err;
-    KernelData kernel_data = kernel_source.second;
+    std::string kernel_name = kernel_.GetName();
+    const char* kernel_source_ptr = kernel_.GetSource().c_str();
+    const size_t kernel_size_ptr = kernel_.GetSize();
     cl_program program =
-        clCreateProgramWithSource(context, 1, &kernel_data.first, kernel_data.second, &err);
+        clCreateProgramWithSource(context, 1, &kernel_source_ptr, &kernel_size_ptr, &err);
     if (err != CL_SUCCESS) {
       std::cerr
           << "[kern::KernelManager::CreateKernels] clCreateProgramWithSource failed, error code: "
@@ -64,12 +65,22 @@ void kern::KernelManager::CreateKernels() {
     }
 
     // 3. Create the kernel (function) from this program
-    const char* kernel_name = kernel_source.first.c_str();
-    cl_kernel kernel = clCreateKernel(program, kernel_name, &err);
-    assert(err == CL_SUCCESS && "[kern::KernelManager::CreateKernels] Program has an error!\r\n");
+    cl_kernel kernel = clCreateKernel(program, kernel_name.c_str(), &err);
+    if (err != CL_SUCCESS) {
+      std::cerr << "[kern::KernelManager::CreateKernels] Kernel name: " << kernel_name.c_str()
+                << std::endl;
+      std::cerr << "[kern::KernelManager::CreateKernels] Program has an error! code: " << err
+                << std::endl;
+      if (err == CL_INVALID_KERNEL_NAME) {
+        std::cerr << "[kern::KernelManager::CreateKernels] IMPORTANT: Kernel function name must "
+                     "be same as that of file name."
+                  << std::endl;
+      }
+      return;
+    }
 
     // 3. Store kernel
-    kernels.push_back(kernel);
+    kernels[kernel_name] = kernel;
     programs.push_back(program);
   }
 }
@@ -87,8 +98,42 @@ void kern::KernelManager::Init(cl_context context_, cl_device_id device_,
   CreateKernels();
 }
 
+template <typename... Args>
+void KernelArguments(const std::string& kernel_name, const Args&... args) {
+  cl_kernel& kernel = kernels[kernel_name];
+  SetKernelArgs(kernel, 0, args...);
+}
+
+// Recursive helper to set each argument
+template <typename T, typename... Rest>
+void SetKernelArgs(cl::Kernel& kernel, int index, const T& arg, const Rest&... rest) {
+  kernel.setArg(index, arg);
+  SetKernelArgs(kernel, index + 1, rest...);
+}
+
+// Base case (end of recursion)
+inline void SetKernelArgs(cl::Kernel&, int) {}
+
+// Main helper: takes kernel name, kernel object, and any number of args
+template <typename... Args>
+void KernelArguments(const std::string& kernel_name, cl::Kernel& kernel, const Args&... args) {
+  std::cout << "Setting arguments for kernel: " << kernel_name << std::endl;
+  SetKernelArgs(kernel, 0, args...);
+}
+
+template <typename T>
+void kern::KernelManager::CreateMemory(std::vector<T>& memory_buffer) {
+  cl_int err;
+  clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                 sizeof(T) * memory_buffer.size(), memory_buffer.data(), &err);
+  if (err != CL_SUCCESS) {
+    std::cout << "[kern::KernelManager::CreateMemory] Failed to create memory" << std::endl;
+  }
+}
+
 void kern::KernelManager::Clear() {
   // Step 1. Release the programs
+  for (auto& kernel : kernels) clReleaseKernel(kernel);
   for (auto& program : programs) clReleaseProgram(program);
   kernels.clear();
   kernel_sources.clear();

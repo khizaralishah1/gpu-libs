@@ -20,11 +20,13 @@ void cl::CLManager::Init(const std::string& kernels_directory) {
   // Step 3: Create the context
   SetupContext();
 
-  // Step 4. Command queue
+  // Step 4: Command queue
   SetupCommandQueue();
 
   // Step 5: Kernels
   kernel_manager.Init(context, device, kernels_directory);
+
+  // Step 6: Memory buffers for our functions (kernels)
 }
 
 void cl::CLManager::SetupCommandQueue() {
