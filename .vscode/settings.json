@@ -109,6 +109,7 @@
     "expected": "cpp",
     "spanstream": "cpp",
     "stacktrace": "cpp",
-    "print": "cpp"
+    "print": "cpp",
+    "execution": "cpp"
   }
 }

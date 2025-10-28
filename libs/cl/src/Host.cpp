@@ -2,4 +2,7 @@
 
 cl::Host::Host() {}
 
-void cl::Host::Start() { cl_manager.Start(); }
+void cl::Host::Init(const std::string& kernels_directory) {
+  // 1. Find opencl device, set up context, load kernels
+  cl_manager.Init(kernels_directory);
+}
